@@ -4,7 +4,7 @@
   "description": "Zero-dependency CLI to manage environment secrets from a central private Git repository. Generates .env files, resolves shared secrets, and syncs to GitHub Actions.",
   "main": "lib/index.js",
   "bin": {
-    "secenv": "./bin/secenv.js"
+    "secenv": "bin/secenv.js"
   },
   "scripts": {
     "test": "node bin/secenv.js --help"
