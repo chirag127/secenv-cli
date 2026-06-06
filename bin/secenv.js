@@ -74,11 +74,15 @@ ${c.bold}secenv${c.reset} — Centralized secrets manager
 ${c.dim}v${PKG.version}${c.reset}
 
 ${c.bold}Usage:${c.reset}
-  secenv                Generate .env from .env.example
-  secenv --github       Also sync secrets to GitHub Actions
-  secenv --init <url>   Set up central secrets repo
-  secenv --help         Show this help
-  secenv --version      Show version
+  secenv                    Generate .env from .env.example
+  secenv --github           Also sync secrets to GitHub Actions
+  secenv --init <url>       Set up central secrets repo
+  secenv --clean [dir]      Remove stale projects (dir = parent of repos)
+  secenv --delete <proj>    Delete a project entry
+  secenv --remove <key>     Remove a shared secret key
+  secenv --list             List projects and shared keys
+  secenv --help             Show this help
+  secenv --version          Show version
 
 ${c.bold}How it works:${c.reset}
   1. Reads .env.example in the current directory
@@ -115,9 +119,141 @@ async function main() {
   const initUrl =
     initIdx !== -1 ? args[initIdx + 1] : null;
 
+  const isList = args.includes('--list') || args.includes('-l');
+
+  const cleanIdx = args.indexOf('--clean');
+  const cleanDir = cleanIdx !== -1
+    ? args[cleanIdx + 1] || process.cwd()
+    : null;
+  const assumeYes = args.includes('--yes') || args.includes('-y');
+
+  const delIdx = args.indexOf('--delete');
+  const deleteProj = delIdx !== -1 ? args[delIdx + 1] : null;
+
+  const rmIdx = args.indexOf('--remove');
+  const removeKey = rmIdx !== -1 ? args[rmIdx + 1] : null;
+
   const rl = createRL();
 
   try {
+    // ── Step 0: Handle non-generate flags ──
+    if (isList || deleteProj || removeKey || cleanDir) {
+      info('Syncing central secrets repository...');
+      const s = syncCentralRepo();
+      if (s.error === 'NO_REPO') {
+        error('No central repo. Run: secenv --init <url>');
+        rl.close();
+        process.exit(1);
+      }
+      const cfg = loadSecrets();
+
+      if (isList) {
+        const projs = Object.keys(cfg.projects);
+        const shared = Object.keys(cfg.shared);
+        log('');
+        info(`Projects (${projs.length}):`);
+        if (projs.length === 0) {
+          log('  (none)');
+        } else {
+          for (const p of projs) {
+            log(`  • ${p} (${Object.keys(cfg.projects[p]).length} keys)`);
+          }
+        }
+        log('');
+        info(`Shared keys (${shared.length}):`);
+        if (shared.length === 0) {
+          log('  (none)');
+        } else {
+          for (const k of shared) {
+            log(`  • ${k}`);
+          }
+        }
+        rl.close();
+        process.exit(0);
+      }
+
+      if (deleteProj) {
+        if (!cfg.projects[deleteProj]) {
+          error(`Project "${deleteProj}" not found.`);
+          rl.close();
+          process.exit(1);
+        }
+        delete cfg.projects[deleteProj];
+        saveSecrets(cfg);
+        const pushed = pushCentralRepo(`delete: ${deleteProj}`);
+        success(`Removed project "${deleteProj}".`);
+        if (pushed) success('Pushed to central repo.');
+        else warn('Saved locally (push failed).');
+        rl.close();
+        process.exit(0);
+      }
+
+      if (removeKey) {
+        if (!(removeKey in cfg.shared)) {
+          error(`Shared key "${removeKey}" not found.`);
+          rl.close();
+          process.exit(1);
+        }
+        delete cfg.shared[removeKey];
+        saveSecrets(cfg);
+        const pushed = pushCentralRepo(
+          `remove: shared key ${removeKey}`
+        );
+        success(`Removed shared key "${removeKey}".`);
+        if (pushed) success('Pushed to central repo.');
+        else warn('Saved locally (push failed).');
+        rl.close();
+        process.exit(0);
+      }
+
+      if (cleanDir) {
+        const fs = require('fs');
+        if (!fs.existsSync(cleanDir)) {
+          error(`Directory "${cleanDir}" does not exist.`);
+          rl.close();
+          process.exit(1);
+        }
+        const projs = Object.keys(cfg.projects);
+        const stale = [];
+        for (const p of projs) {
+          const pp = require('path').join(cleanDir, p);
+          if (!fs.existsSync(pp)) stale.push(p);
+        }
+        if (stale.length === 0) {
+          success(`No stale projects. All ${projs.length} `
+            + `projects exist under ${cleanDir}.`);
+          rl.close();
+          process.exit(0);
+        }
+        warn(`Found ${stale.length} stale project(s):`);
+        for (const s of stale) log(`  • ${s}`);
+
+        let proceed = assumeYes;
+        if (!proceed) {
+          const answer = (await ask(
+            rl,
+            `${c.yellow}?${c.reset} Remove them? [y/N]: `
+          )).trim().toLowerCase();
+          proceed = answer === 'y' || answer === 'yes';
+        }
+
+        if (proceed) {
+          for (const s of stale) delete cfg.projects[s];
+          saveSecrets(cfg);
+          const pushed = pushCentralRepo(
+            `clean: removed ${stale.length} stale project(s)`
+          );
+          success(`Removed ${stale.length} stale project(s).`);
+          if (pushed) success('Pushed to central repo.');
+          else warn('Saved locally (push failed).');
+        } else {
+          info('Cancelled. No changes made.');
+        }
+        rl.close();
+        process.exit(0);
+      }
+    }
+
     // ── Step 1: Sync central repo ───────────
     info('Syncing central secrets repository...');
 

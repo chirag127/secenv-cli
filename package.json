@@ -1,13 +1,16 @@
 {
   "name": "secenv-cli",
-  "version": "1.0.0",
-  "description": "Zero-dependency CLI to manage environment secrets from a central private Git repository. Generates .env files, resolves shared secrets, and syncs to GitHub Actions.",
+  "version": "1.1.0",
+  "description": "Zero-dependency CLI to manage environment secrets from a central private Git repository. Generates .env files, resolves shared secrets, syncs to GitHub Actions, and cleans up deleted projects.",
   "main": "lib/index.js",
   "bin": {
     "secenv": "bin/secenv.js"
   },
   "scripts": {
-    "test": "node bin/secenv.js --help"
+    "test": "node --test test/unit.test.js test/integration.test.js",
+    "test:unit": "node --test test/unit.test.js",
+    "test:integration": "node --test test/integration.test.js",
+    "test:smoke": "node test-local.js"
   },
   "keywords": [
     "secrets",
@@ -36,7 +39,9 @@
   "files": [
     "bin/",
     "lib/",
+    ".env.example",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "devDependencies": {}
 }
