@@ -1,0 +1,42 @@
+{
+  "name": "secenv-cli",
+  "version": "1.0.0",
+  "description": "Zero-dependency CLI to manage environment secrets from a central private Git repository. Generates .env files, resolves shared secrets, and syncs to GitHub Actions.",
+  "main": "lib/index.js",
+  "bin": {
+    "secenv": "./bin/secenv.js"
+  },
+  "scripts": {
+    "test": "node bin/secenv.js --help"
+  },
+  "keywords": [
+    "secrets",
+    "env",
+    "dotenv",
+    "cli",
+    "git",
+    "secrets-manager",
+    "environment-variables",
+    "github-actions",
+    "devops"
+  ],
+  "author": "Chirag Singhal <76880977+chirag127@users.noreply.github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chirag127/secenv-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chirag127/secenv-cli/issues"
+  },
+  "homepage": "https://github.com/chirag127/secenv-cli#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "LICENSE",
+    "README.md"
+  ]
+}
